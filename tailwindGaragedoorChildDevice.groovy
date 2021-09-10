@@ -22,7 +22,7 @@
 
 
 metadata {
-    definition (name: "Tailwind Garagedoor", namespace: "Chaue", author: "Chaue Shen") {
+    definition (name: "Tailwind Garagedoor", namespace: "kaimyn", author: "Chaue Shen") {
         capability "GarageDoorControl"
         capability "DoorControl"
         capability "ContactSensor"
