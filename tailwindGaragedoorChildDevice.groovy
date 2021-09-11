@@ -32,9 +32,9 @@ metadata {
 } 
 
 void close() {
-    getParent().closeDoor(device.deviceNetworkId)
+    getParent().closeDoorInternal(device.deviceNetworkId)
 }
 
 void open() {
-    getParent().openDoor(device.deviceNetworkId)
+    getParent().openDoorInternal(device.deviceNetworkId)
 }
