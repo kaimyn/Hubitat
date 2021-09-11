@@ -21,7 +21,7 @@
 
 
 metadata {
-    definition (name: "Tailwind Garagedoor Controller", namespace: "Chaue", author: "Chaue Shen") {
+    definition (name: "Tailwind Garagedoor Controller", namespace: "kaimyn", author: "Chaue Shen") {
         capability "Polling"
         capability "Refresh"
 
