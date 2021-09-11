@@ -22,18 +22,30 @@
 
 
 metadata {
-    definition (name: "Tailwind Garagedoor", namespace: "kaimyn", author: "Chaue Shen") {
+    definition (name: "Tailwind Garagedoor", namespace: "Chaue", author: "Chaue Shen") {
         capability "GarageDoorControl"
         capability "DoorControl"
         capability "ContactSensor"
         
     }
-
 } 
 
+void setLogs(logEnable, txtEnable) {
+    updateDataValue("logEnable", logEnable as String)
+    updateDataValue("txtEnable", txtEnable as String)
+    
+    if(logEnable) {
+        log.info "logEnable " + logEnable
+        log.info "txtEnable " + txtEnable
+    }
+}
+
+
 void setIP(address) {
+    
     updateDataValue("ip", address)
-    log.info "Setting IP: " + getDataValue("ip")
+    
+    if(getDataValue("logEnable") as boolean) log.info "Setting IP: " + getDataValue("ip")
 }
 
 void setDoorID(id) {
@@ -45,9 +57,10 @@ void updateStatus(status) {
     //this event will fire even if the status has not changed either in the event of a refresh or if a different door has changed state
     //I'm not sure if sending events in this case has other implications across the system
     
-    sendEvent(name: "door", value: status, displayed: true)
-    sendEvent(name: "contact", value: status, displayed: true)
-    log.info "Sent event for door: " + getDataValue("doorID") + ", " + status
+    sendEvent(name: "door", value: status, descriptionText: "Door ${device.deviceNetworkId} is ${status}")
+    sendEvent(name: "contact", value: status)
+    
+    if(getDataValue("txtEnable") as boolean) log.info "Door ${device.deviceNetworkId} is ${status}"
 }
 
 void close() {
@@ -61,8 +74,9 @@ void close() {
             body: "-" + getDataValue("doorID")
         ]
   
-        asynchttpPost("parseCmdResponse", params, cmd)
-        log.info "Closing IP: " + params.get("uri") + params.get("path")
+        if(getDataValue("logEnable") as boolean) log.info "Sending close request to ${params.uri} for door ${params.body}"
+        
+        asynchttpPost("parseCmdResponse", params)
         
     } catch (Exception e) {
         log.error "Error = ${e}"
@@ -80,8 +94,9 @@ void open() {
             body: getDataValue("doorID")
         ]
         
+        if(getDataValue("logEnable") as boolean) log.info "Sending open request to ${params.uri} for door ${params.body}"
+        
         asynchttpPost("parseCmdResponse", params, cmd)
-        log.info "Opening IP: " + params.get("uri") + params.get("path")
         
     } catch (Exception e) {
         log.error "Error = ${e}"
@@ -89,38 +104,30 @@ void open() {
 }
 
 void parseCmdResponse(resp, data) {
-    switch(resp.getData() as int) {
-        case 1:
-            log.info "Garage door 1 is opening"
-            getParent().sendEvent(name: "Door 1 Status", value: "opening", displayed: true)
-            sendEvent(name: "door", value: "opening", displayed: true)
-            break
-        case 2:
-            log.info "Garage door 2 is opening"
-            getParent().sendEvent(name: "Door 2 Status", value: "opening", displayed: true)
-            sendEvent(name: "door", value: "opening", displayed: true)        
-            break
-        case 4:
-            log.info "Garage door 3 is opening"
-            getParent().sendEvent(name: "Door 3 Status", value: "opening", displayed: true)
-            sendEvent(name: "door", value: "opening", displayed: true)        
-            break
-        case -1:
-            log.info "Garage door 1 is closing"
-            getParent().sendEvent(name: "Door 1 Status", value: "closing", displayed: true)
-            sendEvent(name: "door", value: "closing", displayed: true)        
-            break
-        case -2:
-            log.info "Garage door 2 is closing"
-            getParent().sendEvent(name: "Door 2 Status", value: "closing", displayed: true)
-            sendEvent(name: "door", value: "closing", displayed: true)        
-            break
-        case -4:
-            log.info "Garage door 3 is closing"
-            getParent().sendEvent(name: "Door 3 Status", value: "closing", displayed: true)
-            sendEvent(name: "door", value: "closing", displayed: true)        
-            break
-    }
+    
+    statusCode = resp.getData() as int
+    statusCode += 4
+    
+    if(getDataValue("logEnable") as boolean) log.info "Tailwind responded with ${resp.getData()} and was interpreted as ${statusCode}"
+    
+    //thanks to derek.badge (https://github.com/Gelix/HubitatTailwind) for the idea
+    def statusCodes = [
+        ["Door 3 Status", "closing"],    //-4 + 4 -> 0
+        ["Unused", "unused"],            //No mapping -> 1
+        ["Door 2 Status", "closing"],    //-2 + 4 -> 2
+        ["Door 1 Status", "closing"],    //-1 + 4 -> 3
+        ["Unused", "unused"],            //No mapping -> 4
+        ["Door 1 Status", "opening"],    //1 + 4 -> 5
+        ["Door 2 Status", "opening"],    //2 + 4 -> 6
+        ["Unused", "unused"],            //No mapping -> 7
+        ["Door 3 Status", "opening"]    //4 + 4 -> 8
+    ]
+    
+    getParent().sendEvent(name: statusCodes[statusCode][0], value: statusCodes[statusCode][1])
+    sendEvent(name: "door", value: statusCodes[statusCode][1], descriptionText: "Door ${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}")
+    
+    if(getDataValue("txtEnable") as boolean) log.info "Door ${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}"
+    
     
     //wait 15 seconds and force a refresh of the status in case the door failed to open or close
     //there must be a better way of doing this
