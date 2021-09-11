@@ -15,8 +15,7 @@
  *
  *  Tailwind has released beta support for a local api. You can get it activated on your account by reaching out to them.  
  *  This is a beta release and there is NO security or authorization on the api, which means that anyone with access to 
- *  your network can open your garage door.  I am also not an experience developer! This is my first ever driver so please 
- *  use at your own risk, I don't recommend it.
+ *  your network can open your garage door.  
  *
 **/
 
