@@ -17,6 +17,9 @@
  *  This is a beta release and there is NO security or authorization on the api, which means that anyone with access to 
  *  your network can open your garage door.  
  *
+ *  Changes:
+ *  9/11/2021: Added polling, refactored to move all logic to the controller
+ *
 **/
 
 
@@ -25,6 +28,8 @@ metadata {
         capability "Polling"
         capability "Refresh"
 
+        command "closeDoor", ["int"]
+        command "openDoor", ["int"]
         attribute "Status", "int"
         attribute "Door 1 Status", "string"
         attribute "Door 2 Status", "string"
@@ -33,27 +38,52 @@ metadata {
     
     preferences {
         input name: "ip", type: "string", title: "IP Address", required: true
-        input name: "door1", type: "bool", title: "Enable Door 1"
-        input name: "door2", type: "bool", title: "Enable Door 2"
-        input name: "door3", type: "bool", title: "Enable Door 3"
+        input name: "door1", type: "bool", title: "Enable Door 1", defaultValue: false
+        input name: "door2", type: "bool", title: "Enable Door 2", defaultValue: false
+        input name: "door3", type: "bool", title: "Enable Door 3", defaultValue: false
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
         input name: "txtEnable", type: "bool", title: "Enable descriptionText logging", defaultValue: true
+        input name: "interval", type: "integer", title: "Polling interval (seconds)", defaultValue: 2, description: "Recommended to set value between 2 and 60"
+        input name: "pollEnable", type: "bool", title: "Enable status polling", defaultValue: false
     }
 } 
 
+def installed() {
+    unschedule()
+}
+
 void logsOff() {
-    log.warn "debug logging disabled..."
+    log.info "debug logging disabled..."
     device.updateSetting("logEnable",[value:"false",type:"bool"])
     getChildDevices.each { it.setLogs(logEnable, txtEnable) }
 }
 
 void updated() {
-    log.info "starting update"
     addChildren()
-    updateChildren()
     refresh()
+    unschedule()
+    initialize()
     if (logEnable) runIn(1800,logsOff)
     
+}
+
+void initialize() {
+    if(pollEnable) {
+        if(logEnable) log.debug "Enabling polling schedule every: ${interval} seconds"
+        
+        try {
+            int setting = interval as int
+            if(setting < 1) {
+                device.updateSetting("interval", [value:2, type: "integer"])
+                setting = 2
+            }
+            schedule("0/${setting} * * ? * * *", poll)
+        } catch (Exception e) {
+            log.error "Error = ${e}"
+            device.updateSetting("pollEnable", [value:false, type: "bool"])
+            device.updateSetting("interval", [value:"2", type: "integer"])
+        }
+    }
 }
 
 void addChildren() {
@@ -79,18 +109,9 @@ void addChildren() {
         deleteChildDevice("4")
     }
     
-    getChildDevices().each { log.info "Child device: " + it.name }
+    if(logEnable) getChildDevices().each { log.debug "Child device ${it.name} available" }
 }
 
-void updateChildren() {
-    
-    if(logEnable) log.info "method called: updateChildren"
-    getChildDevices().each { 
-        it.setLogs(logEnable, txtEnable)
-        it.setIP(ip)
-        it.setDoorID(it.deviceNetworkId)
-    }
-}
 
 void refresh() {
     //works like poll(), but forces a send event to update status even if status has not changed
@@ -125,9 +146,9 @@ void poll() {
 
 void parseStatusResponse(resp, data) {
     if(logEnable) {
-        log.info "Method called: parseStatusResponse"
-        log.info "Polled Tailwind and got response: " + resp.getData()
-        log.info "Last status was: " + device.currentValue("Status")
+        log.debug "Method called: parseStatusResponse"
+        log.debug "Polled Tailwind and got response: " + resp.getData()
+        log.debug "Last status was: " + device.currentValue("Status")
     }
     
     boolean force = data.get("force")
@@ -151,19 +172,19 @@ void parseStatusResponse(resp, data) {
     def child3 = getChildDevice("4")
     
     if(device.currentValue("Status").equals(response as String ) && !force) {
-        if(logEnable) log.info "No change"
+        if(logEnable) log.debug "No change"
     } else {
         sendEvent(name: "Status", value: response, displayed: false)
-        if(logEnable) log.info "Updated status to " + response
+        if(logEnable) log.debug "Updated status to " + response
         
         if(child1!=null) { 
-            child1.updateStatus(statusCodes[response][0])
+            child1.sendEvent(name: "door", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
         }
         if(child2!=null) {
-            child2.updateStatus(statusCodes[response][1])
+            child2.sendEvent(name: "door", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
         }
         if(child3!=null) {
-            child3.updateStatus(statusCodes[response][2])
+            child3.sendEvent(name: "door", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
         }
         
         sendEvent(name: "Door 1 Status", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
@@ -176,4 +197,86 @@ void parseStatusResponse(resp, data) {
             log.info "Door 3 is ${statusCodes[response][2]}"
         }
     }
+}
+
+void openDoor(doorID) {
+    
+    log.debug "Method openDoor called with ID ${doorID}"
+
+    try {
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
+        if(doorID == "3") doorID = 4
+        
+        Map params = [
+            uri: "http://"+ip,
+            path: "/cmd",
+            contentType: "application/x-www-form-urlencoded",
+            body: doorID
+        ]
+        
+        if(logEnable) log.debug "Sending open request to ${params.uri} for door ${params.body}"
+        
+        asynchttpPost("parseCmdResponse", params, [doorID: doorID])
+        
+    } catch (Exception e) {
+        log.error "Error = ${e}"
+    }
+}
+
+void closeDoor(doorID) {
+    
+    if(logEnable) log.debug "Method closeDoor called with ID ${doorID}"
+    
+    try {
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")        
+        if(doorID == "3") doorID = 4
+    
+        Map params = [
+            uri: "http://"+ip,
+            path: "/cmd",
+            contentType: "application/x-www-form-urlencoded",
+            body: "-" + doorID
+        ]
+  
+        if(logEnable) log.debug "Sending close request to ${params.uri} for door ${params.body}"
+        
+        asynchttpPost("parseCmdResponse", params, [doorID: doorID])
+        
+    } catch (Exception e) {
+        log.error "Error = ${e}"
+    }
+}
+
+
+void parseCmdResponse(resp, data) {
+    
+    statusCode = resp.getData() as int
+    statusCode += 4
+    
+    if(logEnable) log.debug "Tailwind responded with ${resp.getData()} and was interpreted as ${statusCode}"
+    
+    //thanks to derek.badge (https://github.com/Gelix/HubitatTailwind) for the idea
+    def statusCodes = [
+        ["Door 3 Status", "closing"],    //-4 + 4 -> 0
+        ["Unused", "unused"],            //No mapping -> 1
+        ["Door 2 Status", "closing"],    //-2 + 4 -> 2
+        ["Door 1 Status", "closing"],    //-1 + 4 -> 3
+        ["Unused", "unused"],            //No mapping -> 4
+        ["Door 1 Status", "opening"],    //1 + 4 -> 5
+        ["Door 2 Status", "opening"],    //2 + 4 -> 6
+        ["Unused", "unused"],            //No mapping -> 7
+        ["Door 3 Status", "opening"]    //4 + 4 -> 8
+    ]
+    
+    sendEvent(name: statusCodes[statusCode][0], value: statusCodes[statusCode][1])
+    door = getChildDevice(data.doorID as String)
+    if(door != null) door.sendEvent(name: "door", value: statusCodes[statusCode][1], descriptionText: "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}")
+    
+    if(txtEnable) log.info "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}"
+    
+    
+    //wait 25 seconds and force a refresh of the status in case the door failed to open or close
+    //there must be a better way of doing this
+    pauseExecution(25000)
+    refresh()
 }
