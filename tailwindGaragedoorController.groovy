@@ -1,4 +1,3 @@
-
 /**
  *  Tailwind Garagedoor Controller
  *
@@ -16,6 +15,8 @@
  *  Tailwind has released beta support for a local api. You can get it activated on your account by reaching out to them.  
  *  This is a beta release and there is NO security or authorization on the api, which means that anyone with access to 
  *  your network can open your garage door.  
+ *
+ *  Thanks to derek.badge (https://github.com/Gelix/HubitatTailwind) for the ideas I borrowed
  *
  *  Changes:
  *  9/11/2021: Added polling, refactored to move all logic to the controller
@@ -155,7 +156,6 @@ void parseStatusResponse(resp, data) {
     
     int response = resp.getData() as int
     
-    //thanks to derek.badge (https://github.com/Gelix/HubitatTailwind) for the idea
     def statusCodes=[
         ["closed", "closed", "closed"],       //0
         ["open", "closed", "closed"],         //1
@@ -204,7 +204,7 @@ void openDoor(doorID) {
     log.debug "Method openDoor called with ID ${doorID}"
 
     try {
-        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
+        if(doorID != "1" && doorID != "2" && doorID != "3" && doorID != "4") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
         if(doorID == "3") doorID = 4
         
         Map params = [
@@ -228,7 +228,7 @@ void closeDoor(doorID) {
     if(logEnable) log.debug "Method closeDoor called with ID ${doorID}"
     
     try {
-        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")        
+        if(doorID != "1" && doorID != "2" && doorID != "3" && doorID != "4") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")        
         if(doorID == "3") doorID = 4
     
         Map params = [
@@ -255,7 +255,6 @@ void parseCmdResponse(resp, data) {
     
     if(logEnable) log.debug "Tailwind responded with ${resp.getData()} and was interpreted as ${statusCode}"
     
-    //thanks to derek.badge (https://github.com/Gelix/HubitatTailwind) for the idea
     def statusCodes = [
         ["Door 3 Status", "closing"],    //-4 + 4 -> 0
         ["Unused", "unused"],            //No mapping -> 1
