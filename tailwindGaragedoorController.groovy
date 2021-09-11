@@ -200,12 +200,20 @@ void parseStatusResponse(resp, data) {
 }
 
 void openDoor(doorID) {
+    try {
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
+        if(doorID == "3") doorID = 4
+        openDoorInternal(doorID)        
+    } catch (Exception e) {
+        log.error "Error = ${e}"
+    }
+}
+
+void openDoorInternal(doorID) {
     
     if(logEnable) log.debug "Method openDoor called with ID ${doorID}"
 
     try {
-        if(doorID != "1" && doorID != "2" && doorID != "3" && doorID != "4") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
-        if(doorID == "3") doorID = 4
         
         Map params = [
             uri: "http://"+ip,
@@ -224,12 +232,20 @@ void openDoor(doorID) {
 }
 
 void closeDoor(doorID) {
+    try {
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
+        if(doorID == "3") doorID = 4
+        closeDoorInternal(doorID)        
+    } catch (Exception e) {
+        log.error "Error = ${e}"
+    }
+}      
+    
+void closeDoorInternal(doorID) {
     
     if(logEnable) log.debug "Method closeDoor called with ID ${doorID}"
     
     try {
-        if(doorID != "1" && doorID != "2" && doorID != "3" && doorID != "4") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")        
-        if(doorID == "3") doorID = 4
     
         Map params = [
             uri: "http://"+ip,
