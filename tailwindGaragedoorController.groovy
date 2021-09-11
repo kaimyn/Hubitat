@@ -201,7 +201,7 @@ void parseStatusResponse(resp, data) {
 
 void openDoor(doorID) {
     
-    log.debug "Method openDoor called with ID ${doorID}"
+    if(logEnable) log.debug "Method openDoor called with ID ${doorID}"
 
     try {
         if(doorID != "1" && doorID != "2" && doorID != "3" && doorID != "4") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
