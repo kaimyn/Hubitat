@@ -22,30 +22,39 @@
 
 
 metadata {
-    definition (name: "Tailwind Garagedoor Controller", namespace: "kaimyn", author: "Chaue Shen") {
+    definition (name: "Tailwind Garagedoor Controller", namespace: "Chaue", author: "Chaue Shen") {
         capability "Polling"
         capability "Refresh"
 
-        attribute "Status", "text"
-        attribute "Door 1 Status", "text"
-        attribute "Door 2 Status", "text"
-        attribute "Door 3 Status", "text"
+        attribute "Status", "int"
+        attribute "Door 1 Status", "string"
+        attribute "Door 2 Status", "string"
+        attribute "Door 3 Status", "string"
     }
     
     preferences {
-        input name: "ip", type: "text", title: "IP Address", required: true
+        input name: "ip", type: "string", title: "IP Address", required: true
         input name: "door1", type: "bool", title: "Enable Door 1"
         input name: "door2", type: "bool", title: "Enable Door 2"
         input name: "door3", type: "bool", title: "Enable Door 3"
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+        input name: "txtEnable", type: "bool", title: "Enable descriptionText logging", defaultValue: true
     }
 } 
 
+void logsOff() {
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable",[value:"false",type:"bool"])
+    getChildDevices.each { it.setLogs(logEnable, txtEnable) }
+}
 
 void updated() {
-    //log.info "Update"
+    log.info "starting update"
     addChildren()
     updateChildren()
     refresh()
+    if (logEnable) runIn(1800,logsOff)
+    
 }
 
 void addChildren() {
@@ -75,7 +84,10 @@ void addChildren() {
 }
 
 void updateChildren() {
+    
+    if(logEnable) log.info "method called: updateChildren"
     getChildDevices().each { 
+        it.setLogs(logEnable, txtEnable)
         it.setIP(ip)
         it.setDoorID(it.deviceNetworkId)
     }
@@ -113,52 +125,56 @@ void poll() {
 }
 
 void parseStatusResponse(resp, data) {
-    //log.info "Polled Tailwind and got response: " + resp.getData()
-    //log.info "Last status was: " + device.currentValue("Status")
+    if(logEnable) {
+        log.info "Method called: parseStatusResponse"
+        log.info "Polled Tailwind and got response: " + resp.getData()
+        log.info "Last status was: " + device.currentValue("Status")
+    }
     
     boolean force = data.get("force")
+    
+    int response = resp.getData() as int
+    
+    //thanks to derek.badge (https://github.com/Gelix/HubitatTailwind) for the idea
+    def statusCodes=[
+        ["closed", "closed", "closed"],       //0
+        ["open", "closed", "closed"],         //1
+        ["closed", "open", "closed"],         //2
+        ["open", "open", "closed"],           //3
+        ["closed", "closed", "open"],         //4
+        ["open", "closed", "open"],           //5
+        ["closed", "open", "open"],           //6
+        ["open", "open", "open"]              //7
+    ] 
     
     def child1 = getChildDevice("1")
     def child2 = getChildDevice("2")
     def child3 = getChildDevice("4")
     
-    def child1Status
-    def child2Status
-    def child3Status
-    
-    if(device.currentValue("Status").equals(resp.getData()) && !force) {
-        log.info "No change"
+    if(device.currentValue("Status").equals(response as String ) && !force) {
+        if(logEnable) log.info "No change"
     } else {
-        sendEvent(name: "Status", value: resp.getData(), displayed: false)
-        log.info "Updated status to " + resp.getData()
-        int response = resp.getData() as int
-
-        //bitwise comparison where 0 means closed
-        //feels cleaner than the switch used in the child devices but no idea if it's better
-        door1Status = response&1
-        door2Status = response&2
-        door3Status = response&4
+        sendEvent(name: "Status", value: response, displayed: false)
+        if(logEnable) log.info "Updated status to " + response
         
-        child1Status = "closed"
-        child2Status = "closed"
-        child3Status = "closed"
-        
-        if(door1Status>0) child1Status = "open"
-        if(door2Status>0) child2Status = "open"
-        if(door3Status>0) child3Status = "open"
-
         if(child1!=null) { 
-            child1.updateStatus(child1Status)
+            child1.updateStatus(statusCodes[response][0])
         }
         if(child2!=null) {
-            child2.updateStatus(child2Status)
+            child2.updateStatus(statusCodes[response][1])
         }
         if(child3!=null) {
-            child3.updateStatus(child3Status)
+            child3.updateStatus(statusCodes[response][2])
         }
         
-        sendEvent(name: "Door 1 Status", value: child1Status, displayed: true)
-        sendEvent(name: "Door 2 Status", value: child2Status, displayed: true)
-        sendEvent(name: "Door 3 Status", value: child3Status, displayed: true)
+        sendEvent(name: "Door 1 Status", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
+        sendEvent(name: "Door 2 Status", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
+        sendEvent(name: "Door 3 Status", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
+        
+        if(txtEnable) {
+            log.info "Door 1 is ${statusCodes[response][0]}"
+            log.info "Door 2 is ${statusCodes[response][1]}"
+            log.info "Door 3 is ${statusCodes[response][2]}"
+        }
     }
 }
