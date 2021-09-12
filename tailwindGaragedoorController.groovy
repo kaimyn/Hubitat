@@ -42,7 +42,7 @@ metadata {
         input name: "door1", type: "bool", title: "Enable Door 1", defaultValue: false, description: "Installs child device for door 1"
         input name: "door2", type: "bool", title: "Enable Door 2", defaultValue: false, description: "Installs child device for door 2"
         input name: "door3", type: "bool", title: "Enable Door 3", defaultValue: false, description: "Installs child device for door 3"
-        input name: "interval", type: "integer", title: "Polling Interval (seconds)", defaultValue: 2, description: "Recommended to set value between 2 and 60"
+        input name: "interval", type: "number", title: "Polling Interval (seconds)", defaultValue: 2, description: "Recommended to set value between 2 and 60", range: "1.."
         input name: "pollEnable", type: "bool", title: "Enable Status Polling", defaultValue: false, description: "Enables polling Tailwind for the status of the garage doors"
         input name: "logEnable", type: "bool", title: "Enable debug Logging", defaultValue: true
         input name: "txtEnable", type: "bool", title: "Enable descriptionText Logging", defaultValue: true        
@@ -86,26 +86,17 @@ void initialize() {
 }
 
 void addChildren() {
-    def currentchild = getChildDevice("1")
+    def currentchild
+    doors = [door1, door2, door3]
     
-    if(door1 && currentchild==null) {
-        currentchild = addChildDevice("Tailwind Garagedoor", "1", [isComponent: true, name: "${device.name} Door 1", label: "${device.name} Door 1"])
-    } else if (!door1 && currentchild!=null) {
-        deleteChildDevice("1")
-    }
-    
-    currentchild = getChildDevice("2")
-    if(door2 && currentchild==null) {
-        addChildDevice("Tailwind Garagedoor", "2", [isComponent: true, name: "${device.name} Door 2", label: "${device.name} Door 2"])
-    } else if (!door2 && currentchild != null) {
-        deleteChildDevice("2")
-    }
-    
-    currentchild = getChildDevice("4")
-    if(door3 && currentchild == null) {
-        addChildDevice("Tailwind Garagedoor", "4", [isComponent: true, name: "${device.name} Door 3", label: "${device.name} Door 3"])
-    } else if (!door3 && currentchild != null) {
-        deleteChildDevice("4")
+    for(int i = 1; i <= 3; i++) {
+        currentchild = getChildDevice("${device.name}-${i}")
+        if(doors[i-1] && currentchild==null) {
+            currentchild = addChildDevice("Tailwind Garagedoor", "${device.name}-${i}", [isComponent: true, name: "${device.name} Door ${i}", label: "${device.name} Door ${i}"])
+            currentchild.setDoorID(i)
+        } else if(!doors[i-1] && currentchild!=null) {
+            deleteChildDevice("${device.name}-${i}")
+        }
     }
     
     if(logEnable) getChildDevices().each { log.debug "Child device ${it.name} available" }
@@ -165,53 +156,55 @@ void parseStatusResponse(resp, data) {
         ["open", "open", "open"]              //7
     ] 
     
-    def child1 = getChildDevice("1")
-    def child2 = getChildDevice("2")
-    def child3 = getChildDevice("4")
+    def child1 = getChildDevice("${device.name}-1")
+    def child2 = getChildDevice("${device.name}-2")
+    def child3 = getChildDevice("${device.name}-3")
     
-    if(device.currentValue("Status").equals(response as String ) && !force) {
-        if(logEnable) log.debug "No change"
-    } else {
-        sendEvent(name: "Status", value: response, displayed: false)
-        if(logEnable) log.debug "Updated status to " + response
-        
-        if(child1!=null) { 
-            child1.sendEvent(name: "door", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
-        }
-        if(child2!=null) {
-            child2.sendEvent(name: "door", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
-        }
-        if(child3!=null) {
-            child3.sendEvent(name: "door", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
-        }
-        
-        sendEvent(name: "Door 1 Status", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
-        sendEvent(name: "Door 2 Status", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
-        sendEvent(name: "Door 3 Status", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
-        
-        if(txtEnable) {
-            log.info "Door 1 is ${statusCodes[response][0]}"
-            log.info "Door 2 is ${statusCodes[response][1]}"
-            log.info "Door 3 is ${statusCodes[response][2]}"
-        }
-    }
-}
-
-void openDoor(doorID) {
+    
     try {
-        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("'${doorID}' is invalid. Try opening door 1, 2, or 3.")
-        if(doorID == "3") doorID = 4
-        openDoorInternal(doorID)        
-    } catch (Exception e) {
+        
+        if(resp.getStatus() != 200) throw new Exception("parseStatusResponse: Bad response status ${resp.getStatus()}")
+        
+        if(device.currentValue("Status").equals(response as String ) && !force) {
+            if(logEnable) log.debug "No change"
+        } else {
+            sendEvent(name: "Status", value: response, displayed: false)
+            if(logEnable) log.debug "Updated status to " + response
+
+            if(child1!=null) { 
+                child1.sendEvent(name: "door", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
+            }
+            if(child2!=null) {
+                child2.sendEvent(name: "door", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
+            }
+            if(child3!=null) {
+                child3.sendEvent(name: "door", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
+            }
+
+            sendEvent(name: "Door 1 Status", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
+            sendEvent(name: "Door 2 Status", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
+            sendEvent(name: "Door 3 Status", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
+
+            if(txtEnable) {
+                log.info "Door 1 is ${statusCodes[response][0]}"
+                log.info "Door 2 is ${statusCodes[response][1]}"
+                log.info "Door 3 is ${statusCodes[response][2]}"
+            }
+        }
+    } catch (e) {
         log.error "Error = ${e}"
     }
 }
 
-void openDoorInternal(doorID) {
+void openDoor(doorID) {
     
     if(logEnable) log.debug "Method openDoor called with ID ${doorID}"
 
     try {
+        
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("'${doorID}' is invalid. Try opening door 1, 2, or 3.")
+        //if(doorID == "3") doorID = 4
+        //testing indicates that we should use doorID=3 for door 3, despite documentation saying 4
         
         Map params = [
             uri: "http://"+ip,
@@ -227,23 +220,17 @@ void openDoorInternal(doorID) {
     } catch (Exception e) {
         log.error "Error = ${e}"
     }
-}
-
-void closeDoor(doorID) {
-    try {
-        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("'${doorID}' is invalid. Try opening door 1, 2, or 3.")
-        if(doorID == "3") doorID = 4
-        closeDoorInternal(doorID)        
-    } catch (Exception e) {
-        log.error "Error = ${e}"
-    }
-}      
+}  
     
-void closeDoorInternal(doorID) {
+void closeDoor(doorID) {
     
     if(logEnable) log.debug "Method closeDoor called with ID ${doorID}"
     
     try {
+        
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("'${doorID}' is invalid. Try opening door 1, 2, or 3.")
+        //if(doorID == "3") doorID = 4
+        //testing indicates that we should use doorID=3 for door 3, despite documentation saying 4
     
         Map params = [
             uri: "http://"+ip,
@@ -264,32 +251,42 @@ void closeDoorInternal(doorID) {
 
 void parseCmdResponse(resp, data) {
     
-    statusCode = resp.getData() as int
-    statusCode += 4
-    
-    if(logEnable) log.debug "Tailwind responded with ${resp.getData()} and was interpreted as ${statusCode}"
-    
     def statusCodes = [
         ["Door 3 Status", "closing"],    //-4 + 4 -> 0
-        ["Unused", "unused"],            //No mapping -> 1
+        ["Door 3 Status", "closing"],    //No mapping -> 1, testing indicates that this is door 3, contrary to documentation
         ["Door 2 Status", "closing"],    //-2 + 4 -> 2
         ["Door 1 Status", "closing"],    //-1 + 4 -> 3
         ["Unused", "unused"],            //No mapping -> 4
         ["Door 1 Status", "opening"],    //1 + 4 -> 5
         ["Door 2 Status", "opening"],    //2 + 4 -> 6
-        ["Unused", "unused"],            //No mapping -> 7
-        ["Door 3 Status", "opening"]    //4 + 4 -> 8
+        ["Door 3 Status", "opening"],    //No mapping -> 7, testing indicates that this is door 3, contrary to documentation
+        ["Door 3 Status", "opening"]     //4 + 4 -> 8
     ]
     
-    sendEvent(name: statusCodes[statusCode][0], value: statusCodes[statusCode][1])
-    door = getChildDevice(data.doorID as String)
-    if(door != null) door.sendEvent(name: "door", value: statusCodes[statusCode][1], descriptionText: "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}")
-    
-    if(txtEnable) log.info "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}"
     
     
-    //wait 25 seconds and force a refresh of the status in case the door failed to open or close
-    //there must be a better way of doing this
-    pauseExecution(25000)
-    refresh()
+    try {
+        
+        if(logEnable) log.info "Response status is ${resp.getStatus()}"
+        if(resp.getStatus() != 200) throw new Exception ("parseCmdResponse: Bad response status ${resp.getStatus()}" )
+        
+        statusCode = resp.getData() as int
+            statusCode += 4
+
+        if(logEnable) log.debug "Tailwind responded with ${resp.getData()} and was interpreted as ${statusCode}"
+
+        sendEvent(name: statusCodes[statusCode][0], value: statusCodes[statusCode][1])
+        door = getChildDevice("${device.name}-${data.doorID as String}")
+        if(door != null) door.sendEvent(name: "door", value: statusCodes[statusCode][1], descriptionText: "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}")
+
+        if(txtEnable) log.info "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}"
+
+
+        //wait 25 seconds and force a refresh of the status in case the door failed to open or close
+        //there must be a better way of doing this
+        pauseExecution(25000)
+        refresh()
+    } catch (e) {
+        log.error "Error = ${e}"
+    }
 }
