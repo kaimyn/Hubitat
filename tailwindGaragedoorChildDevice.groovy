@@ -32,7 +32,7 @@ metadata {
 } 
 
 void setDoorID(doorID) {
-    updateDataValue("doorID", doorID)
+    updateDataValue("doorID", doorID as String)
 }
 
 void close() {
