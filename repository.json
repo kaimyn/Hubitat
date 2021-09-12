@@ -1,13 +1,13 @@
 {
     "author": "Chaue Shen",
-    "gitHubUrl": "https://github.com/kaimyn/Hubitat"
+    "gitHubUrl": "https://github.com/kaimyn/Hubitat",
     "packages": [
 		{
 			"name": "Tailwind Garage Door Controller",
 			"category": "Integrations",
 			"location": "https://raw.githubusercontent.com/kaimyn/Tailwind_Hubitat/main/packageManifest.json",
-			"description": "Integration for the Tailwind iQ3 Garage Door Controller"
-            "tags": "Garage Doors"
+			"description": "Integration for the Tailwind iQ3 Garage Door Controller",
+            		"tags": "Garage Doors"
 		},
 
 	]
