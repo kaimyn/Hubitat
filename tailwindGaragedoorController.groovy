@@ -39,13 +39,13 @@ metadata {
     
     preferences {
         input name: "ip", type: "string", title: "IP Address", required: true
-        input name: "door1", type: "bool", title: "Enable Door 1", defaultValue: false
-        input name: "door2", type: "bool", title: "Enable Door 2", defaultValue: false
-        input name: "door3", type: "bool", title: "Enable Door 3", defaultValue: false
-        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-        input name: "txtEnable", type: "bool", title: "Enable descriptionText logging", defaultValue: true
-        input name: "interval", type: "integer", title: "Polling interval (seconds)", defaultValue: 2, description: "Recommended to set value between 2 and 60"
-        input name: "pollEnable", type: "bool", title: "Enable status polling", defaultValue: false
+        input name: "door1", type: "bool", title: "Enable Door 1", defaultValue: false, description: "Installs child device for door 1"
+        input name: "door2", type: "bool", title: "Enable Door 2", defaultValue: false, description: "Installs child device for door 2"
+        input name: "door3", type: "bool", title: "Enable Door 3", defaultValue: false, description: "Installs child device for door 3"
+        input name: "interval", type: "integer", title: "Polling Interval (seconds)", defaultValue: 2, description: "Recommended to set value between 2 and 60"
+        input name: "pollEnable", type: "bool", title: "Enable Status Polling", defaultValue: false, description: "Enables polling Tailwind for the status of the garage doors"
+        input name: "logEnable", type: "bool", title: "Enable debug Logging", defaultValue: true
+        input name: "txtEnable", type: "bool", title: "Enable descriptionText Logging", defaultValue: true        
     }
 } 
 
@@ -74,13 +74,11 @@ void initialize() {
         
         try {
             int setting = interval as int
-            if(setting < 1) {
-                device.updateSetting("interval", [value:2, type: "integer"])
-                setting = 2
-            }
+                if(setting < 1) throw new Exception ("Invalid polling interval: ${interval}")
             schedule("0/${setting} * * ? * * *", poll)
         } catch (Exception e) {
             log.error "Error = ${e}"
+            log.error "Polling configuration failed. Disabling polling."
             device.updateSetting("pollEnable", [value:false, type: "bool"])
             device.updateSetting("interval", [value:"2", type: "integer"])
         }
@@ -91,21 +89,21 @@ void addChildren() {
     def currentchild = getChildDevice("1")
     
     if(door1 && currentchild==null) {
-        currentchild = addChildDevice("Tailwind Garagedoor", "1", [isComponent: true, name: "Garage Door 1", label: "Garage Door 1"])
+        currentchild = addChildDevice("Tailwind Garagedoor", "1", [isComponent: true, name: "${device.name} Door 1", label: "${device.name} Door 1"])
     } else if (!door1 && currentchild!=null) {
         deleteChildDevice("1")
     }
     
     currentchild = getChildDevice("2")
     if(door2 && currentchild==null) {
-        addChildDevice("Tailwind Garagedoor", "2", [isComponent: true, name: "Garage Door 2", label: "Garage Door 2"])
+        addChildDevice("Tailwind Garagedoor", "2", [isComponent: true, name: "${device.name} Door 2", label: "${device.name} Door 2"])
     } else if (!door2 && currentchild != null) {
         deleteChildDevice("2")
     }
     
     currentchild = getChildDevice("4")
     if(door3 && currentchild == null) {
-        addChildDevice("Tailwind Garagedoor", "4", [isComponent: true, name: "Garage Door 3", label: "Garage Door 3"])
+        addChildDevice("Tailwind Garagedoor", "4", [isComponent: true, name: "${device.name} Door 3", label: "${device.name} Door 3"])
     } else if (!door3 && currentchild != null) {
         deleteChildDevice("4")
     }
@@ -132,7 +130,7 @@ void refresh() {
 
 
 void poll() {
-    
+
     try {
         Map params = [
             uri: "http://"+ip,
@@ -201,7 +199,7 @@ void parseStatusResponse(resp, data) {
 
 void openDoor(doorID) {
     try {
-        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("'${doorID}' is invalid. Try opening door 1, 2, or 3.")
         if(doorID == "3") doorID = 4
         openDoorInternal(doorID)        
     } catch (Exception e) {
@@ -233,7 +231,7 @@ void openDoorInternal(doorID) {
 
 void closeDoor(doorID) {
     try {
-        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("${doorID} is invalid. Try opening door 1, 2, or 3.")
+        if(doorID != "1" && doorID != "2" && doorID != "3") throw new Exception("'${doorID}' is invalid. Try opening door 1, 2, or 3.")
         if(doorID == "3") doorID = 4
         closeDoorInternal(doorID)        
     } catch (Exception e) {
