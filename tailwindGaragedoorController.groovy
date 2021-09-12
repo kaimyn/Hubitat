@@ -113,9 +113,10 @@ void refresh() {
             path: "/status",
         ]
         asynchttpGet("parseStatusResponse", params, [force: true])
+        if(logEnable) log.debug "Sending status request to ${params.uri}"
         
     } catch(Exception e) {
-        log.error "Error = ${e}"
+        log.error "refresh: Error = ${e}"
     }
 }
 
@@ -128,9 +129,10 @@ void poll() {
             path: "/status",
         ]
         asynchttpGet("parseStatusResponse", params, [force: false])
+        if(logEnable) log.debug "Sending status request to ${params.uri}"
     
     } catch(Exception e) {
-        log.error "Error = ${e}"
+        log.error "poll: Error = ${e}"
     }
 }
 
@@ -142,12 +144,14 @@ void parseStatusResponse(resp, data) {
     }
     
     boolean force = data.get("force")
+    int response
     
     try {
-        int response = resp.getData() as int
+        response = resp.getData() as int
         if(response<0 || response>7) throw new Exception()
             } catch (e) {
-        log.warn "Tailwind responded with an unexpected result. Setting doors to unknown state."
+        log.warn "Tailwind responded with an unexpected result: ${resp.getData()}"
+        log.warn "Setting doors to unknown state."
         response = 8
     }
     
@@ -199,7 +203,7 @@ void parseStatusResponse(resp, data) {
             }
         }
     } catch (e) {
-        log.error "Error = ${e}"
+        log.error "parseStatusResponse: Error = ${e}"
     }
 }
 
@@ -225,7 +229,7 @@ void openDoor(doorID) {
         asynchttpPost("parseCmdResponse", params, [doorID: doorID])
         
     } catch (Exception e) {
-        log.error "Error = ${e}"
+        log.error "openDoor: Error = ${e}"
     }
 }  
     
@@ -251,7 +255,7 @@ void closeDoor(doorID) {
         asynchttpPost("parseCmdResponse", params, [doorID: doorID])
         
     } catch (Exception e) {
-        log.error "Error = ${e}"
+        log.error "closeDoor: Error = ${e}"
     }
 }
 
@@ -275,8 +279,12 @@ void parseCmdResponse(resp, data) {
     try {
         
         if(logEnable) log.info "Response status is ${resp.getStatus()}"
+        
         if(resp.getStatus() != 200) throw new Exception ("parseCmdResponse: Bad response status ${resp.getStatus()}" )
-        if("${data.doorID}" != resp.getData() && "-${data.doorID}" != resp.getData()) log.warn "parseCmdResponse: Unexpected response from Tailwind. Ignoring..."
+        if("${data.doorID}" != resp.getData() && "-${data.doorID}" != resp.getData()) {
+            log.warn "parseCmdResponse: Unexpected response from Tailwind: ${resp.getData()}"
+            log.warn "Ignoring..."
+        }
         
         statusCode = resp.getData() as int
             statusCode += 4
@@ -295,6 +303,6 @@ void parseCmdResponse(resp, data) {
         pauseExecution(25000)
         refresh()
     } catch (e) {
-        log.error "Error = ${e}"
+        log.error "parseCmdResponse: Error = ${e}"
     }
 }
