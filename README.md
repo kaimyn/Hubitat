@@ -10,4 +10,3 @@ Installation instructions:
 3. Create a virtual device on Hubitat with Tailwind Garagedoor Controller as the device type
 4. Set the IP and enable the doors that are physically wired to your controller
 
-In order to use the status of the doors as a trigger for anything, you'll need to set up polling. I used Rule Machine to do it on my Hubitat.
