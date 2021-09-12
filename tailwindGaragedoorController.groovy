@@ -143,7 +143,13 @@ void parseStatusResponse(resp, data) {
     
     boolean force = data.get("force")
     
-    int response = resp.getData() as int
+    try {
+        int response = resp.getData() as int
+        if(response<0 || response>7) throw new Exception()
+            } catch (e) {
+        log.warn "Tailwind responded with an unexpected result. Setting doors to unknown state."
+        response = 8
+    }
     
     def statusCodes=[
         ["closed", "closed", "closed"],       //0
@@ -153,7 +159,8 @@ void parseStatusResponse(resp, data) {
         ["closed", "closed", "open"],         //4
         ["open", "closed", "open"],           //5
         ["closed", "open", "open"],           //6
-        ["open", "open", "open"]              //7
+        ["open", "open", "open"],             //7
+        ["unknown", "unknown", "unknown"]     //8 -> Other responses
     ] 
     
     def child1 = getChildDevice("${device.name}-1")
@@ -168,7 +175,7 @@ void parseStatusResponse(resp, data) {
         if(device.currentValue("Status").equals(response as String ) && !force) {
             if(logEnable) log.debug "No change"
         } else {
-            sendEvent(name: "Status", value: response, displayed: false)
+            sendEvent(name: "Status", value: response)
             if(logEnable) log.debug "Updated status to " + response
 
             if(child1!=null) { 
@@ -269,6 +276,7 @@ void parseCmdResponse(resp, data) {
         
         if(logEnable) log.info "Response status is ${resp.getStatus()}"
         if(resp.getStatus() != 200) throw new Exception ("parseCmdResponse: Bad response status ${resp.getStatus()}" )
+        if("${data.doorID}" != resp.getData() && "-${data.doorID}" != resp.getData()) log.warn "parseCmdResponse: Unexpected response from Tailwind. Ignoring..."
         
         statusCode = resp.getData() as int
             statusCode += 4
