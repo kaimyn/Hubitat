@@ -31,10 +31,14 @@ metadata {
     }
 } 
 
+void setDoorID(doorID) {
+    updateDataValue("doorID", doorID)
+}
+
 void close() {
-    getParent().closeDoorInternal(device.deviceNetworkId)
+    getParent().closeDoor(getDataValue("doorID"))
 }
 
 void open() {
-    getParent().openDoorInternal(device.deviceNetworkId)
+    getParent().openDoor(getDataValue("doorID"))
 }
