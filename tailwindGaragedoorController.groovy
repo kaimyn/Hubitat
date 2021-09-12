@@ -90,12 +90,12 @@ void addChildren() {
     doors = [door1, door2, door3]
     
     for(int i = 1; i <= 3; i++) {
-        currentchild = getChildDevice("${device.name}-${i}")
+        currentchild = getChildDevice("${device.deviceNetworkId}-${i}")
         if(doors[i-1] && currentchild==null) {
-            currentchild = addChildDevice("Tailwind Garagedoor", "${device.name}-${i}", [isComponent: true, name: "${device.name} Door ${i}", label: "${device.name} Door ${i}"])
+            currentchild = addChildDevice("Tailwind Garagedoor", "${device.deviceNetworkId}-${i}", [isComponent: true, name: "${device.name} Door ${i}", label: "${device.name} Door ${i}"])
             currentchild.setDoorID(i)
         } else if(!doors[i-1] && currentchild!=null) {
-            deleteChildDevice("${device.name}-${i}")
+            deleteChildDevice("${device.deviceNetworkId}-${i}")
         }
     }
     
@@ -178,7 +178,7 @@ void parseStatusResponse(resp, data) {
             if(logEnable) log.debug "parseStatusResponse: Updated status to " + response
             
             for(int i=1; i<=3; i++) {
-                child = getChildDevice("${device.name}-${i}")
+                child = getChildDevice("${device.deviceNetworkId}-${i}")
                 
                 if(child!=null) child.sendEvent(name: "door", value: statusCodes[response][i-1], descriptionText: "Door ${i} is ${statusCodes[response][i-1]}")
                 
@@ -282,7 +282,7 @@ void parseCmdResponse(resp, data) {
 
         sendEvent(name: statusCodes[statusCode][0], value: statusCodes[statusCode][1])
         
-        door = getChildDevice("${device.name}-${data.doorID as String}")
+        door = getChildDevice("${device.deviceNetworkId}-${data.doorID as String}")
         if(door != null) door.sendEvent(name: "door", value: statusCodes[statusCode][1], descriptionText: "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}")
 
         if(txtEnable) log.info "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}"
