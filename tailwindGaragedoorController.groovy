@@ -54,9 +54,8 @@ def installed() {
 }
 
 void logsOff() {
-    log.info "debug logging disabled..."
+    log.info "logsOff: debug logging disabled..."
     device.updateSetting("logEnable",[value:"false",type:"bool"])
-    getChildDevices.each { it.setLogs(logEnable, txtEnable) }
 }
 
 void updated() {
@@ -65,20 +64,21 @@ void updated() {
     unschedule()
     initialize()
     if (logEnable) runIn(1800,logsOff)
-    
 }
 
 void initialize() {
     if(pollEnable) {
-        if(logEnable) log.debug "Enabling polling schedule every: ${interval} seconds"
         
         try {
+            
             int setting = interval as int
-                if(setting < 1) throw new Exception ("Invalid polling interval: ${interval}")
+            if(setting < 1) throw new Exception ("Invalid polling interval: ${interval}")
+                
+            if(logEnable) log.debug "Enabling polling schedule every: ${interval} seconds"
             schedule("0/${setting} * * ? * * *", poll)
         } catch (Exception e) {
-            log.error "Error = ${e}"
-            log.error "Polling configuration failed. Disabling polling."
+            log.error "initialize: Error = ${e}"
+            log.error "initialize: Polling configuration failed. Disabling polling."
             device.updateSetting("pollEnable", [value:false, type: "bool"])
             device.updateSetting("interval", [value:"2", type: "integer"])
         }
@@ -99,7 +99,7 @@ void addChildren() {
         }
     }
     
-    if(logEnable) getChildDevices().each { log.debug "Child device ${it.name} available" }
+    if(logEnable) getChildDevices().each { log.debug "addChildren: Child device ${it.name} available" }
 }
 
 
@@ -113,7 +113,7 @@ void refresh() {
             path: "/status",
         ]
         asynchttpGet("parseStatusResponse", params, [force: true])
-        if(logEnable) log.debug "Sending status request to ${params.uri}"
+        if(logEnable) log.debug "refresh: Sending status request to ${params.uri}"
         
     } catch(Exception e) {
         log.error "refresh: Error = ${e}"
@@ -129,7 +129,7 @@ void poll() {
             path: "/status",
         ]
         asynchttpGet("parseStatusResponse", params, [force: false])
-        if(logEnable) log.debug "Sending status request to ${params.uri}"
+        if(logEnable) log.debug "poll: Sending status request to ${params.uri}"
     
     } catch(Exception e) {
         log.error "poll: Error = ${e}"
@@ -138,20 +138,22 @@ void poll() {
 
 void parseStatusResponse(resp, data) {
     if(logEnable) {
-        log.debug "Method called: parseStatusResponse"
-        log.debug "Polled Tailwind and got response: " + resp.getData()
-        log.debug "Last status was: " + device.currentValue("Status")
+        log.debug "parseStatusResponse: Polled Tailwind and got response: " + resp.getData()
+        log.debug "parseStatusResponse: Last status was: " + device.currentValue("Status")
     }
     
     boolean force = data.get("force")
     int response
     
     try {
+        
+        if(resp.getStatus() != 200) throw new Exception("parseStatusResponse: Bad response status ${resp.getStatus()}")
         response = resp.getData() as int
-        if(response<0 || response>7) throw new Exception()
+        if(response<0 || response>7) throw new Exception("Tailwind responded with an unexpected result: ${resp.getData()}")
+            
             } catch (e) {
-        log.warn "Tailwind responded with an unexpected result: ${resp.getData()}"
-        log.warn "Setting doors to unknown state."
+        log.warn "parseStatusResponse: ${e}"
+        log.warn "parseStatusResponse: Setting doors to unknown state."
         response = 8
     }
     
@@ -167,40 +169,23 @@ void parseStatusResponse(resp, data) {
         ["unknown", "unknown", "unknown"]     //8 -> Other responses
     ] 
     
-    def child1 = getChildDevice("${device.name}-1")
-    def child2 = getChildDevice("${device.name}-2")
-    def child3 = getChildDevice("${device.name}-3")
-    
-    
     try {
         
-        if(resp.getStatus() != 200) throw new Exception("parseStatusResponse: Bad response status ${resp.getStatus()}")
-        
         if(device.currentValue("Status").equals(response as String ) && !force) {
-            if(logEnable) log.debug "No change"
+            if(logEnable) log.debug "parseStatusResponse: No change"
         } else {
             sendEvent(name: "Status", value: response)
-            if(logEnable) log.debug "Updated status to " + response
-
-            if(child1!=null) { 
-                child1.sendEvent(name: "door", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
+            if(logEnable) log.debug "parseStatusResponse: Updated status to " + response
+            
+            for(int i=1; i<=3; i++) {
+                child = getChildDevice("${device.name}-${i}")
+                
+                if(child!=null) child.sendEvent(name: "door", value: statusCodes[response][i-1], descriptionText: "Door ${i} is ${statusCodes[response][i-1]}")
+                
+                sendEvent(name: "Door ${i} Status", value: statusCodes[response][i-1], descriptionText: "Door ${i} is ${statusCodes[response][i-1]}")
+                if(txtEnable) log.info "Door ${i} is ${statusCodes[response][i-1]}"
             }
-            if(child2!=null) {
-                child2.sendEvent(name: "door", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
-            }
-            if(child3!=null) {
-                child3.sendEvent(name: "door", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
-            }
-
-            sendEvent(name: "Door 1 Status", value: statusCodes[response][0], descriptionText: "Door 1 is ${statusCodes[response][0]}")
-            sendEvent(name: "Door 2 Status", value: statusCodes[response][1], descriptionText: "Door 2 is ${statusCodes[response][1]}")
-            sendEvent(name: "Door 3 Status", value: statusCodes[response][2], descriptionText: "Door 3 is ${statusCodes[response][2]}")
-
-            if(txtEnable) {
-                log.info "Door 1 is ${statusCodes[response][0]}"
-                log.info "Door 2 is ${statusCodes[response][1]}"
-                log.info "Door 3 is ${statusCodes[response][2]}"
-            }
+            
         }
     } catch (e) {
         log.error "parseStatusResponse: Error = ${e}"
@@ -209,7 +194,7 @@ void parseStatusResponse(resp, data) {
 
 void openDoor(doorID) {
     
-    if(logEnable) log.debug "Method openDoor called with ID ${doorID}"
+    if(logEnable) log.debug "openDoor: Called with ID ${doorID}"
 
     try {
         
@@ -224,7 +209,11 @@ void openDoor(doorID) {
             body: doorID
         ]
         
-        if(logEnable) log.debug "Sending open request to ${params.uri} for door ${params.body}"
+        if(logEnable) log.debug "openDoor: Sending open request to ${params.uri} for door ${params.body}"
+        
+        //allow "opening" status to hold for 10 seconds before updating status
+        unschedule()
+        runIn(10, initialize)
         
         asynchttpPost("parseCmdResponse", params, [doorID: doorID])
         
@@ -235,7 +224,7 @@ void openDoor(doorID) {
     
 void closeDoor(doorID) {
     
-    if(logEnable) log.debug "Method closeDoor called with ID ${doorID}"
+    if(logEnable) log.debug "closeDoor: Called with ID ${doorID}"
     
     try {
         
@@ -250,7 +239,7 @@ void closeDoor(doorID) {
             body: "-" + doorID
         ]
   
-        if(logEnable) log.debug "Sending close request to ${params.uri} for door ${params.body}"
+        if(logEnable) log.debug "closeDoor: Sending close request to ${params.uri} for door ${params.body}"
         
         asynchttpPost("parseCmdResponse", params, [doorID: doorID])
         
@@ -278,7 +267,7 @@ void parseCmdResponse(resp, data) {
     
     try {
         
-        if(logEnable) log.info "Response status is ${resp.getStatus()}"
+        if(logEnable) log.debug "parseCmdResponse: Response status is ${resp.getStatus()}"
         
         if(resp.getStatus() != 200) throw new Exception ("parseCmdResponse: Bad response status ${resp.getStatus()}" )
         if("${data.doorID}" != resp.getData() && "-${data.doorID}" != resp.getData()) {
@@ -289,9 +278,10 @@ void parseCmdResponse(resp, data) {
         statusCode = resp.getData() as int
             statusCode += 4
 
-        if(logEnable) log.debug "Tailwind responded with ${resp.getData()} and was interpreted as ${statusCode}"
+        if(logEnable) log.debug "parseCmdResponse: Tailwind responded with ${resp.getData()} and was interpreted as ${statusCode}"
 
         sendEvent(name: statusCodes[statusCode][0], value: statusCodes[statusCode][1])
+        
         door = getChildDevice("${device.name}-${data.doorID as String}")
         if(door != null) door.sendEvent(name: "door", value: statusCodes[statusCode][1], descriptionText: "${statusCodes[statusCode][0]} is ${statusCodes[statusCode][1]}")
 
@@ -304,5 +294,6 @@ void parseCmdResponse(resp, data) {
         refresh()
     } catch (e) {
         log.error "parseCmdResponse: Error = ${e}"
+        refresh()
     }
 }
