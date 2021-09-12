@@ -5,20 +5,20 @@
   "minimumHEVersion": "2.2.5",
   "licenseFile": "http://www.apache.org/licenses/LICENSE-2.0",
   "dateReleased": "2021-09-12",
-  "documentationLink": "https://github.com/kaimyn/Tailwind_Hubitat"
+  "documentationLink": "https://github.com/kaimyn/Hubitat/main/Tailwind"
   "drivers": [
     {
       "id": "5cb95594-188a-4c68-9b7d-a906fd0d9b51",
       "name": "Tailwind Garagedoor",
       "namespace": "kaimyn",
-      "location": "https://raw.githubusercontent.com/kaimyn/Tailwind_Hubitat/main/tailwindGaragedoorChildDevice.groovy",
+      "location": "https://raw.githubusercontent.com/kaimyn/Hubitat/main/Tailwind/drivers/tailwindGaragedoorChildDevice.groovy",
       "required": true
     },
     {
       "id": "ba9fdc2e-89b5-49c4-be79-bb8ac3b9d771",
       "name": "Tailwind Garagedoor Controller",
       "namespace": "kaimyn",
-      "location": "https://raw.githubusercontent.com/kaimyn/Tailwind_Hubitat/main/tailwindGaragedoorController.groovy",
+      "location": "https://raw.githubusercontent.com/kaimyn/Hubitat/main/Tailwind/drivers/tailwindGaragedoorController.groovy",
       "required": true
     }
   ]
