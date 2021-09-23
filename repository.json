@@ -5,7 +5,7 @@
 		{
 			"name": "Tailwind Garage Door Controller",
 			"category": "Integrations",
-			"location": "https://raw.githubusercontent.com/kaimyn/Tailwind_Hubitat/main/packageManifest.json",
+			"location": "https://raw.githubusercontent.com/kaimyn/Hubitat/main/Tailwind/packageManifest.json",
 			"description": "Integration for the Tailwind iQ3 Garage Door Controller",
             		"tags": "Garage Doors"
 		},
