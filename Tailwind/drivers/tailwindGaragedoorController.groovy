@@ -39,6 +39,7 @@ metadata {
     
     preferences {
         input name: "ip", type: "string", title: "IP Address", required: true
+        input name: "token", type: "password", title: "Local Command Key", required: true, description: 'login with your tailwind app credentials to https://web.gotailwind.com/, go to Local Control Key, create a new local command key.  This is per-account and is the same for each device you may have on your account.'
         input name: "door1", type: "bool", title: "Enable Door 1", defaultValue: false, description: "Installs child device for door 1"
         input name: "door2", type: "bool", title: "Enable Door 2", defaultValue: false, description: "Installs child device for door 2"
         input name: "door3", type: "bool", title: "Enable Door 3", defaultValue: false, description: "Installs child device for door 3"
@@ -111,6 +112,7 @@ void refresh() {
         Map params = [
             uri: "http://"+ip,
             path: "/status",
+            headers: [ "TOKEN" : "${token}"],
         ]
         asynchttpGet("parseStatusResponse", params, [force: true])
         if(logEnable) log.debug "refresh: Sending status request to ${params.uri}"
@@ -127,6 +129,7 @@ void poll() {
         Map params = [
             uri: "http://"+ip,
             path: "/status",
+            headers: [ "TOKEN" : "${token}"],
         ]
         asynchttpGet("parseStatusResponse", params, [force: false])
         if(logEnable) log.debug "poll: Sending status request to ${params.uri}"
@@ -205,6 +208,7 @@ void openDoor(doorID) {
         Map params = [
             uri: "http://"+ip,
             path: "/cmd",
+            headers: [ "TOKEN" : "${token}"],
             contentType: "application/x-www-form-urlencoded",
             body: doorID
         ]
@@ -235,6 +239,7 @@ void closeDoor(doorID) {
         Map params = [
             uri: "http://"+ip,
             path: "/cmd",
+            headers: [ "TOKEN" : "${token}"],
             contentType: "application/x-www-form-urlencoded",
             body: "-" + doorID
         ]
