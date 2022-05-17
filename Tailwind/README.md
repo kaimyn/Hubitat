@@ -1,8 +1,10 @@
 # Tailwind_Hubitat
 Hubitat device drivers for Tailwind support
 
-THIS DRIVER IS BROKEN AS OF TAILWIND V9.95.  NO INFORMATION IS AVAILABLE ON ANY FIXES AT THIS TIME (4/25)
+Now requires Tailwind version 9.95
+Thanks to Gelix for providing the updates to update the compatibility.
 
+To get your token, go to web.tailwind.com.
 
 
 
